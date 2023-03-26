@@ -1,0 +1,169 @@
+---
+title: "capstone cyclistic"
+author: "Jack Fitzgibbons"
+date: "3/16/2023"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(janitor)
+library(lubridate)
+library(ggplot2)
+```
+
+```{r}
+##
+## Load data sets from cyclistic trip data
+##
+setwd("C:/Users/Fitzg/OneDrive/Desktop")
+
+df1 <- read.csv("./Google Case Study/202203-tripdata.csv")
+df2 <- read.csv("./Google Case Study/202204-tripdata.csv")
+df3 <- read.csv("./Google Case Study/202205-tripdata.csv")
+df4 <- read.csv("./Google Case Study/202206-tripdata.csv")
+df5 <- read.csv("./Google Case Study/202207-tripdata.csv")
+df6 <- read.csv("./Google Case Study/202208-tripdata.csv")
+df7 <- read.csv("./Google Case Study/202209-tripdata.csv")
+df8 <- read.csv("./Google Case Study/202210-tripdata.csv")
+df9 <- read.csv("./Google Case Study/202211-tripdata.csv")
+df10 <- read.csv("./Google Case Study/202212-tripdata.csv")
+df11 <- read.csv("./Google Case Study/202301-tripdata.csv")
+df12 <- read.csv("./Google Case Study/202302-tripdata.csv")
+
+```
+
+```{r}
+##
+## Combine 12 df to 1 df and remove empty cells
+##
+trip_data <- rbind(df1, df2, df3, df4, df5, df6, df7, df8, df9, df10, df11, df12)
+trip_data <- janitor::remove_empty(trip_data,which = c("cols"))
+trip_data <- janitor::remove_empty(trip_data,which = c("rows"))
+```
+
+```{r}
+##
+##inspect the new table
+##
+
+colnames(trip_data)  #List of column names
+nrow(trip_data)  #How many rows are in data frame?
+dim(trip_data) #Dimensions of the data frame?
+head(trip_data) #See the first 6 rows of data frame
+str(trip_data) #See list of columns and data types
+```
+
+```{r}
+##
+## add columns that list the date, month, day, and year of each ride
+##
+
+trip_data$date <- as.Date(trip_data$started_at) 
+trip_data$month <- format(as.Date(trip_data$date), "%m")
+trip_data$day <- format(as.Date(trip_data$date), "%d")
+trip_data$year <- format(as.Date(trip_data$date), "%Y")
+trip_data$day_of_week <- format(as.Date(trip_data$date), "%A")
+
+```
+
+```{r}
+##
+##Convert Data/Time stamp to date/time
+##
+
+NA_dates1 <- which(is.na(trip_data$started_at))
+NA_dates2 <- which(is.na(trip_data$ended_at))
+remove(NA_dates1, NA_dates2)
+
+trip_data$started_at <- ymd_hms(trip_data$started_at)
+trip_data$ended_at <- ymd_hms(trip_data$ended_at)
+
+
+```
+
+
+```{r}
+##
+##add ride_length column in seconds
+##
+
+trip_data$ride_length <- difftime(trip_data$ended_at,trip_data$started_at)
+
+# Convert "ride_length" from Factor to numeric so we can run calculations on the data
+is.factor(trip_data$ride_length)
+trip_data$ride_length <- as.numeric(as.character(trip_data$ride_length))
+is.numeric(trip_data$ride_length)
+
+
+```
+
+```{r}
+##
+##Remove data where ride_length less than 0, and create a new version of the dataframe (v2) since data is being removed
+##
+
+trip_data_v2 <- trip_data[!(trip_data$start_station_name == "HQ QR" | trip_data$ride_length<0),]
+```
+
+```{r}
+# Descriptive analysis on ride_length (all figures in seconds)
+
+summary(trip_data_v2$ride_length)
+
+```
+
+```{r}
+# Compare members and casual users
+aggregate(trip_data_v2$ride_length ~ trip_data_v2$member_casual, FUN = mean)
+aggregate(trip_data_v2$ride_length ~ trip_data_v2$member_casual, FUN = median)
+aggregate(trip_data_v2$ride_length ~ trip_data_v2$member_casual, FUN = max)
+aggregate(trip_data_v2$ride_length ~ trip_data_v2$member_casual, FUN = min)
+
+```
+
+```{r}
+# See the average ride time by each day of the week for members vs casual users
+aggregate(trip_data_v2$ride_length ~ trip_data_v2$member_casual + trip_data_v2$day_of_week, FUN = mean)
+
+#order days of the week 
+trip_data_v2$day_of_week <- ordered(trip_data_v2$day_of_week, levels=c("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"))
+
+```
+
+```{r}
+# visualization for  number of rides by rider type/weekday
+trip_data_v2 %>% 
+  mutate(weekday = wday(started_at, label = TRUE)) %>% 
+  group_by(member_casual, weekday) %>%  
+  summarise(number_of_rides = n(),average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, weekday)%>%
+  ggplot(aes(x = weekday, y = number_of_rides, fill = member_casual)) +
+  geom_col(position = "dodge")
+
+```
+
+
+```{r}
+#visualization for average duration
+trip_data_v2 %>% 
+  mutate(weekday = wday(started_at, label = TRUE)) %>% 
+  group_by(member_casual, weekday) %>%  
+  summarise(number_of_rides = n(),average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, weekday)%>%
+  ggplot(aes(x = weekday, y = average_duration, fill = member_casual)) +
+  geom_col(position = "dodge")
+
+```
+
+
+
+
+
+
+
+
+
